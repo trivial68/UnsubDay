@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UnsubDay — Track/Remind Subscriptions (Sample Data)</title>
+  <style>
+    :root {
+      --bg: #f8f8fb;
+      --panel: #ffffff;
+      --border: #e5e7eb;
+      --text: #111827;
+      --muted: #6b7280;
+      --grayBtnBg: #e5e7eb;
+      --grayBtnBgH: #d1d5db;
+      --dangerBg: #dc2626;
+      --dangerBgH: #b91c1c;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin: 0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"; background: var(--bg); color: var(--text); }
+    header { background: var(--panel); border-bottom: 1px solid var(--border); padding: 12px 16px; }
+    header h1 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
+    header p  { margin: 0; font-size: 13px; color: var(--muted); }
+    main { padding: 16px; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    thead { background: #f3f4f6; color: var(--muted); }
+    th, td { padding: 10px 12px; border-top: 1px solid var(--border); }
+    thead th { border-top: none; text-align: left; font-weight: 600; }
+    td.actions { text-align: right; white-space: nowrap; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); background: #fff; color: var(--text); height: 34px; padding: 0 10px; border-radius: 12px; cursor: pointer; font-size: 13px; margin-left: 6px; }
+    .btn:hover { background: #f9fafb; }
+    .btn.danger { background: var(--dangerBg); border-color: var(--dangerBg); color: #fff; }
+    .btn.danger:hover { background: var(--dangerBgH); }
+    .toolbarWrap { border-top: 1px solid var(--border); background: rgba(255,255,255,0.95); backdrop-filter: saturate(180%) blur(4px); }
+    .toolbar { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 8px; white-space: nowrap; overflow-x: auto; }
+    .cluster { display: inline-flex; align-items: center; gap: 8px; }
+    .emojiBtn { height: 40px; min-width: 40px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--grayBtnBg); color: var(--text); font-size: 20px; display: inline-flex; align-items: center; justify-content: center; line-height: 1; cursor: pointer; }
+    .emojiBtn:hover { background: var(--grayBtnBgH); }
+    .copyright { border-top: 1px solid var(--border); padding: 8px 16px; text-align: center; font-size: 12px; color: var(--muted); }
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: none; z-index: 50; }
+    .overlay.open { display: grid; place-items: center; padding: 16px; }
+    .modal { width: 100%; max-width: 520px; max-height: calc(100svh - 2rem); background: #fff; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: 0 10px 35px rgba(0,0,0,.15); display: flex; flex-direction: column; }
+    .modal header, .modal footer { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+    .modal footer { border-bottom: none; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+    .modal .body { padding: 14px 16px; overflow: auto; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>UnsubDay</h1>
+    <p>Track/Remind Subscriptions — Sample dataset preloaded</p>
+  </header>
+
+  <main>
+    <div class="card">
+      <table id="subsTable">
+        <thead>
+          <tr>
+            <th>Subscription</th>
+            <th>Price</th>
+            <th>Next renewal</th>
+            <th class="actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="subsBody"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <div class="toolbarWrap">
+    <div class="toolbar">
+      <div class="cluster" id="leftGroup">
+        <button class="emojiBtn" id="btnRestore" title="Restore sample data">♻️</button>
+        <label class="emojiBtn" for="importInput" title="Import" style="cursor:pointer;">📥</label>
+        <input id="importInput" type="file" accept="application/json" class="hidden" />
+        <button class="emojiBtn" id="btnExport" title="Export">📤</button>
+      </div>
+      <div class="cluster" id="rightGroup">
+        <button class="emojiBtn" id="btnReset" title="Reset status">🔁</button>
+        <button class="emojiBtn" id="btnNotifications" title="Notifications">📣</button>
+      </div>
+    </div>
+    <div class="copyright">© UnsubDay, 2025</div>
+  </div>
+
+  <div class="overlay" id="deleteOverlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="delTitle" aria-describedby="delDesc">
+      <header><h3 id="delTitle">Delete subscription?</h3></header>
+      <div class="body">
+        <p id="delDesc" class="muted">This will remove <b id="delName"></b> from your list.</p>
+      </div>
+      <footer>
+        <button class="btn" id="delCancel">Cancel</button>
+        <button class="btn danger" id="delConfirm">Delete</button>
+      </footer>
+    </div>
+  </div>
+
+  <div class="overlay" id="resetOverlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="resetTitle" aria-describedby="resetDesc">
+      <header><h3 id="resetTitle">Reset status of closest renewals?</h3></header>
+      <div class="body">
+        <p id="resetDesc" class="muted">You’re about to reset the status for all listed subscriptions.</p>
+        <label class="muted" style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+          <input type="checkbox" id="resetClear" /> Also clear reminders on these renewals
+        </label>
+      </div>
+      <footer>
+        <button class="btn" id="resetCancel">Cancel</button>
+        <button class="btn" id="resetConfirm">Reset</button>
+      </footer>
+    </div>
+  </div>
+
+  <div class="overlay" id="notifOverlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="notifTitle">
+      <header><h3 id="notifTitle">Notifications</h3></header>
+      <div class="body">
+        <p class="muted">Your notifications center goes here.</p>
+        <ul id="notifList" class="muted"></ul>
+      </div>
+      <footer>
+        <button class="btn" id="notifClose">Close</button>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    // Sample dataset (12 items)
+    const initialSubs = [
+      {"id":"1","name":"Spotify","price":"$9.99","nextRenewal":"2025-11-01"},
+      {"id":"2","name":"Netflix","price":"$15.99","nextRenewal":"2025-10-30"},
+      {"id":"3","name":"Adobe Creative Cloud","price":"$52.99","nextRenewal":"2025-11-03"},
+      {"id":"4","name":"YouTube Premium","price":"$13.99","nextRenewal":"2025-11-05"},
+      {"id":"5","name":"iCloud+ 200GB","price":"$2.99","nextRenewal":"2025-11-02"},
+      {"id":"6","name":"Disney+","price":"$13.99","nextRenewal":"2025-11-07"},
+      {"id":"7","name":"Amazon Prime","price":"$14.99","nextRenewal":"2025-11-15"},
+      {"id":"8","name":"Notion Pro","price":"$8.00","nextRenewal":"2025-11-09"},
+      {"id":"9","name":"Figma Professional","price":"$12.00","nextRenewal":"2025-11-12"},
+      {"id":"10","name":"1Password","price":"$2.99","nextRenewal":"2025-11-20"},
+      {"id":"11","name":"ChatGPT Plus","price":"$20.00","nextRenewal":"2025-11-01"},
+      {"id":"12","name":"Xbox Game Pass","price":"$10.99","nextRenewal":"2025-11-04"}
+    ];
+
+    // Initialize from localStorage or preload sample once
+    let subs = JSON.parse(localStorage.getItem('unsubday_demo_subs') || 'null');
+    if (!Array.isArray(subs) || subs.length === 0) {
+      subs = initialSubs.slice();
+      localStorage.setItem('unsubday_demo_subs', JSON.stringify(subs));
+    }
+    function save() { localStorage.setItem('unsubday_demo_subs', JSON.stringify(subs)); }
+
+    const bodyEl = document.getElementById('subsBody');
+    function render() {
+      bodyEl.innerHTML = '';
+      subs.forEach((s, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${s.name}</td>
+          <td>${s.price}</td>
+          <td>${s.nextRenewal}</td>
+          <td class="actions">
+            <button class="btn" data-action="paid"   data-i="${i}">Paid</button>
+            <button class="btn" data-action="unsub"  data-i="${i}">Unsub</button>
+            <button class="btn" data-action="remind" data-i="${i}">Remind</button>
+            <button class="btn danger" data-action="delete" data-i="${i}">Delete</button>
+          </td>`;
+        bodyEl.appendChild(tr);
+      });
+    }
+    render();
+
+    // Row actions
+    bodyEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('button'); if (!btn) return;
+      const i = +btn.dataset.i; const act = btn.dataset.action;
+      if (act === 'paid')   alert('Mark as paid: ' + subs[i].name);
+      if (act === 'unsub')  alert('Unsubscribe: ' + subs[i].name);
+      if (act === 'remind') alert('Set reminder: ' + subs[i].name);
+      if (act === 'delete') openDelete(i);
+    });
+
+    // Delete modal
+    let deleteIndex = -1;
+    const delOverlay = document.getElementById('deleteOverlay');
+    const delName = document.getElementById('delName');
+    document.getElementById('delCancel').onclick = () => closeDel();
+    document.getElementById('delConfirm').onclick = () => {
+      if (deleteIndex >= 0) {
+        subs.splice(deleteIndex, 1);
+        save(); render();
+      }
+      closeDel();
+    };
+    function openDelete(i) {
+      deleteIndex = i; delName.textContent = subs[i].name;
+      delOverlay.classList.add('open'); document.body.style.overflow='hidden';
+    }
+    function closeDel() {
+      delOverlay.classList.remove('open'); document.body.style.overflow='';
+      deleteIndex = -1;
+    }
+    delOverlay.addEventListener('click', (e) => { if (e.target === delOverlay) closeDel(); });
+
+    // Reset modal
+    const resetOverlay = document.getElementById('resetOverlay');
+    document.getElementById('btnReset').onclick = () => {
+      resetOverlay.classList.add('open'); document.body.style.overflow='hidden';
+    };
+    document.getElementById('resetCancel').onclick = () => closeReset();
+    document.getElementById('resetConfirm').onclick = () => {
+      const clear = document.getElementById('resetClear').checked;
+      alert('Reset closest renewals' + (clear ? ' and cleared reminders.' : '.'));
+      closeReset();
+    };
+    function closeReset() {
+      resetOverlay.classList.remove('open'); document.body.style.overflow='';
+      document.getElementById('resetClear').checked = false;
+    }
+    resetOverlay.addEventListener('click', (e) => { if (e.target === resetOverlay) closeReset(); });
+
+    // Notifications modal
+    const notifOverlay = document.getElementById('notifOverlay');
+    const notifList = document.getElementById('notifList');
+    document.getElementById('btnNotifications').onclick = () => {
+      notifList.innerHTML = '<li>No notifications yet.</li>';
+      notifOverlay.classList.add('open'); document.body.style.overflow='hidden';
+    };
+    document.getElementById('notifClose').onclick = () => closeNotif();
+    function closeNotif() { notifOverlay.classList.remove('open'); document.body.style.overflow=''; }
+    notifOverlay.addEventListener('click', (e) => { if (e.target === notifOverlay) closeNotif(); });
+
+    // Restore to sample
+    document.getElementById('btnRestore').onclick = () => { subs = initialSubs.slice(); save(); render(); };
+
+    // Export JSON
+    document.getElementById('btnExport').onclick = () => {
+      const blob = new Blob([JSON.stringify(subs, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'unsubday_export.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    };
+
+    // Import JSON
+    document.getElementById('importInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          if (Array.isArray(data)) { subs = data; save(); render(); }
+          else { alert('Invalid JSON format. Expected an array.'); }
+        } catch (err) { alert('Could not parse JSON.'); }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+  </script>
+</body>
+</html>
